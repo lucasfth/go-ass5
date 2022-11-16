@@ -11,7 +11,7 @@ service BiddingService{
 
 message Bid{
     string name = 1;
-    int32 incrementation = 2;
+    int32 amount = 2;
 }
 
 message Request{}
