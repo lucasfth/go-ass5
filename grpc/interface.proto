@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package request;
+
+option go_package = "https://github.com/Lucasfth/go-ass5;request";
+
+service BiddingService{
+    rpc SendBid (Bid) returns (stream BidResponse) {}
+    rpc RequestCurrentResult (Request) returns (stream RequestResponse) {}
+}
+
+message Bid{
+    string name = 1;
+    int32 incrementation = 2;
+}
+
+message Request{}
+
+message BidResponse{
+    enum OUTCOME_ENUM{
+        Succes = 0;
+        Fail = 1;
+        Exception = 2; 
+     }
+     OUTCOME_ENUM outcome = 3;
+}
+
+message RequestResponse{
+    int32 highestBid = 1;
+    bool isOver = 2;
+}
