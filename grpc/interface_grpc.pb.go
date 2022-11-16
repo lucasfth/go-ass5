@@ -22,6 +22,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BiddingServiceClient interface {
+	Handshake(ctx context.Context, in *ClientHandshake, opts ...grpc.CallOption) (*BidResponse, error)
 	SendBid(ctx context.Context, in *Bid, opts ...grpc.CallOption) (BiddingService_SendBidClient, error)
 	RequestCurrentResult(ctx context.Context, in *Request, opts ...grpc.CallOption) (BiddingService_RequestCurrentResultClient, error)
 }
@@ -32,6 +33,15 @@ type biddingServiceClient struct {
 
 func NewBiddingServiceClient(cc grpc.ClientConnInterface) BiddingServiceClient {
 	return &biddingServiceClient{cc}
+}
+
+func (c *biddingServiceClient) Handshake(ctx context.Context, in *ClientHandshake, opts ...grpc.CallOption) (*BidResponse, error) {
+	out := new(BidResponse)
+	err := c.cc.Invoke(ctx, "/request.BiddingService/Handshake", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *biddingServiceClient) SendBid(ctx context.Context, in *Bid, opts ...grpc.CallOption) (BiddingService_SendBidClient, error) {
@@ -102,6 +112,7 @@ func (x *biddingServiceRequestCurrentResultClient) Recv() (*RequestResponse, err
 // All implementations must embed UnimplementedBiddingServiceServer
 // for forward compatibility
 type BiddingServiceServer interface {
+	Handshake(context.Context, *ClientHandshake) (*BidResponse, error)
 	SendBid(*Bid, BiddingService_SendBidServer) error
 	RequestCurrentResult(*Request, BiddingService_RequestCurrentResultServer) error
 	mustEmbedUnimplementedBiddingServiceServer()
@@ -111,6 +122,9 @@ type BiddingServiceServer interface {
 type UnimplementedBiddingServiceServer struct {
 }
 
+func (UnimplementedBiddingServiceServer) Handshake(context.Context, *ClientHandshake) (*BidResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Handshake not implemented")
+}
 func (UnimplementedBiddingServiceServer) SendBid(*Bid, BiddingService_SendBidServer) error {
 	return status.Errorf(codes.Unimplemented, "method SendBid not implemented")
 }
@@ -128,6 +142,24 @@ type UnsafeBiddingServiceServer interface {
 
 func RegisterBiddingServiceServer(s grpc.ServiceRegistrar, srv BiddingServiceServer) {
 	s.RegisterService(&BiddingService_ServiceDesc, srv)
+}
+
+func _BiddingService_Handshake_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClientHandshake)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BiddingServiceServer).Handshake(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/request.BiddingService/Handshake",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BiddingServiceServer).Handshake(ctx, req.(*ClientHandshake))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _BiddingService_SendBid_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -178,7 +210,12 @@ func (x *biddingServiceRequestCurrentResultServer) Send(m *RequestResponse) erro
 var BiddingService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "request.BiddingService",
 	HandlerType: (*BiddingServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Handshake",
+			Handler:    _BiddingService_Handshake_Handler,
+		},
+	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "SendBid",

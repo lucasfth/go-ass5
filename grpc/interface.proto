@@ -5,8 +5,13 @@ package request;
 option go_package = "https://github.com/Lucasfth/go-ass5;request";
 
 service BiddingService{
+    rpc Handshake (ClientHandshake) returns (BidResponse) {}
     rpc SendBid (Bid) returns (stream BidResponse) {}
     rpc RequestCurrentResult (Request) returns (stream RequestResponse) {}
+}
+
+message ClientHandshake {
+    int32 clientPort = 1;
 }
 
 message Bid{
