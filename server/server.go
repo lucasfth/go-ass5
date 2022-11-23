@@ -2,65 +2,97 @@ package main
 
 import (
 	"context"
-	"log"
-	"os"
-	"strconv"
-	"sync"
 	"fmt"
+	"log"
 	"net"
+	"sync"
+
 	request "github.com/lucasfth/go-ass5/grpc"
-	"golang.org/x/net/context/ctxhttp"
 	"google.golang.org/grpc"
 )
 
 func main() {
-	log.SetFlags(0)
-
-	serverId, _ := strconv.ParseInt(os.Args[1], 10, 32)
-	crashBoolean, _ := strconv.ParseBool(os.Args[2])
-	ownPort := int32(serverId) + 5000
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	s := &server{
-		ownPort: 		ownPort,
-		currentBid: 	0,
-		isOver: 		false,
-		clients: 		make(map[int32]request.ClientHandshake),
-		ctx: 			ctx,
-	}
-
-	// Create listener on port ownPort
-	list, err := net.Listen("tcp", fmt.Sprintf(":%v", ownPort))
+	var id int32
+	log.Printf("Enter id below:")
+	fmt.Scanln(&id)
+	log.Printf("Welcome %v", id)
+	port := int32(5000 + id)
+	portString := fmt.Sprintf(":%v", port)
+	lis, err := net.Listen("tcp", portString)
 	if err != nil {
-		log.Fatalf("Failed to listen on port: %v", err)
+		log.Fatalf("failed to listen: %v", err)
 	}
-	grpcServer := grpc.NewServer()
-	request.RegisterBiddingServiceServer(grpcServer, s)
 	
-	go func() {
-		if err := grpcServer.Serve(list); err != nil {
-			log.Fatalf("failed to server %v", err)
-		}
-	}()
-
-	for {
-
+	server := &server{
+		mutex: sync.Mutex{},
+		ownPort: port,
+		currentBid: 0,
+		currentBidOwner: "",
+		isOver: false, 
+		clients: make(map[int32]request.ClientHandshake),
+		ctx: context.Background(),
+	}
+	
+	// create grpc server
+	s := grpc.NewServer()
+	request.RegisterBiddingServiceServer(s, server)
+	
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
 }
 
-func (s *server) WelcomeClient(ctx context.Context, req *request.ClientHandshake) (*request.BidResponse, error) {
+func(s *server) Handshake(in *request.ClientHandshake, srv request.BiddingService_HandshakeServer) error {
+	log.Printf("Has recieved handshake from %v", in.ClientPort)
+
+	resp := &request.BidResponse{}
+	resp.Response = "Succes"
+	srv.Send(resp);	
+	return nil;
+}
+
+func (s *server) SendBid(in *request.Bid, srv request.BiddingService_SendBidServer) error{
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	log.Printf("Has recieved bid response from %s", in.Name)
 	
+	resp := &request.BidResponse{}
+	if in.Amount > s.currentBid{
+		s.currentBid = in.Amount
+		s.currentBidOwner = in.Name
+		resp.Response = "Success"
+	} else if in.Amount <= s.currentBid{
+		resp.Response = "Fail"
+	} else {
+		resp.Response = "Exception"
+	}
+	srv.Send(resp);
+	return nil
+}
+
+func (s *server) RequestCurrentResult(in *request.Request, srv request.BiddingService_RequestCurrentResultServer) error {
+	log.Printf("Has recieved request from someone")
 	
-	
+	resp := &request.RequestResponse{}
+	resp.HighestBid = s.currentBid
+	resp.IsOver = s.isOver
+	if s.isOver {
+		resp.WinnerName = s.currentBidOwner
+	} else {
+		resp.WinnerName = ""
+	}
+	srv.Send(resp);
+	return nil;
 }
 
 type server struct{
-	mutex 		sync.Mutex
-	ownPort 	int32
-	currentBid 	int32
-	isOver 		bool
-	clients 	map[int32]request.ClientHandshake
+	mutex 			sync.Mutex
+	ownPort 		int32
+	currentBid 		int32
+	currentBidOwner	string
+	isOver 			bool
 	ctx 		context.Context
+	request.UnimplementedBiddingServiceServer
+	clients 	map[int32]request.ClientHandshake // can probably be removed
 }
