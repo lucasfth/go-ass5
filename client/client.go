@@ -80,7 +80,7 @@ func (c *client) sendBids(bid int32){
 	responses := make([]string, len(c.servers))
 	for i := 0; i < len(c.servers); i++ { // Send bid to all servers
 		response, _ := c.sendBid(int32(i), bid)
-		responses = append(responses, response)
+		responses[i] = response
 	}
 	logicResponse := c.logic(responses, bid)
 
@@ -94,7 +94,7 @@ func (c *client) sendBid(iteration int32, bid int32) (string, error) {
 		return "nil", err
 	}
 	resp, err := stream.Recv()
-	return resp.String(), err
+	return resp.GetResponse(), err
 }
 
 func (c *client) requestCurrentResults() (currentRelaventBid int32){
@@ -122,11 +122,14 @@ func (c *client) requestCurrentResult(iteration int32)(*request.RequestResponse,
 
 func (c *client) logic(responses []string, bid int32) (string) {
 	for i := 0; i < len(responses); i++ {
+		log.Printf("Response was: %s ,on i: %v", responses[i], i)
 		if responses[i] == "Success" {
 			c.currentBid = bid
+			log.Printf("Went into success")
 			return "Succes"
 		} else if responses[i] == "Fail" {
 			c.currentBid = -1
+			log.Printf("Went into fail")
 			return "Fail"
 		} else if responses[i] == "Exception" {
 			continue
