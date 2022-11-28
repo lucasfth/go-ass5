@@ -16,7 +16,6 @@ import (
 
 type client struct {
 	name 			string
-	currentBid		int32
 	downedServers 	map[int32]bool
 	servers 		[]request.BiddingServiceClient
 }
@@ -161,17 +160,14 @@ func (c *client) logic(responses []string, bid int32) (string) {
 	for i := 0; i < len(responses); i++ {
 		// log.Printf("Response was: %s ,on i: %v", responses[i], i)
 		if responses[i] == "Success" {
-			c.currentBid = bid
 			// log.Printf("Went into success")
 			return "Succes"
 		} else if responses[i] == "Fail" {
-			c.currentBid = -1
 			// log.Printf("Went into fail")
 			return "Fail"
 		} else if (i == len(responses) - 1) {
 			return "Exception"
 		}
 	}
-	c.currentBid = -1
 	return "Fail"
 }
