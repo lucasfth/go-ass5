@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"sync"
+	"time"
 
 	request "github.com/lucasfth/go-ass5/grpc"
 	"google.golang.org/grpc"
@@ -16,6 +17,12 @@ func main() {
 	log.Printf("Enter id below:")
 	fmt.Scanln(&id)
 	log.Printf("Welcome %v", id)
+
+	var endHour, endMin int
+	log.Printf("Enter auction time below in hour and min:")
+	fmt.Scanln(&endHour, &endMin)
+	end := time.Date (time.Now().Year(), time.Now().Month(), time.Now().Day(), endHour, endMin, 0, 0, time.Local)
+
 	port := int32(5000 + id)
 	portString := fmt.Sprintf(":%v", port)
 	lis, err := net.Listen("tcp", portString)
@@ -29,6 +36,7 @@ func main() {
 		currentBid: 0,
 		currentBidOwner: "",
 		isOver: false, 
+		auctionEnd: end,
 		clients: make(map[int32]request.ClientHandshake),
 		ctx: context.Background(),
 	}
@@ -56,6 +64,18 @@ func (s *server) SendBid(in *request.Bid, srv request.BiddingService_SendBidServ
 	defer s.mutex.Unlock()
 
 	resp := &request.BidResponse{}
+
+	if (time.Until(s.auctionEnd) <= 0) {
+		s.isOver = true
+	}
+	if (s.isOver) {
+		log.Printf("Bid 	%s with %v but auction over, winner: %s , with: %v", in.Name, in.Amount, s.currentBidOwner, s.currentBid)
+		resp.Response = "Fail" 
+		srv.Send(resp)
+		return nil
+	}
+
+	
 	if in.Amount > s.currentBid{
 		s.currentBid = in.Amount
 		s.currentBidOwner = in.Name
@@ -66,14 +86,18 @@ func (s *server) SendBid(in *request.Bid, srv request.BiddingService_SendBidServ
 		resp.Response = "Exception"
 	}
 
-	log.Printf("Bid 	%s	,%s with %v", in.Name, resp.Response, in.Amount)
+	log.Printf("Bid 	%s	%s with %v", in.Name, resp.Response, in.Amount)
 	
-	srv.Send(resp);
+	srv.Send(resp)
 	return nil
 }
 
 func (s *server) RequestCurrentResult(in *request.Request, srv request.BiddingService_RequestCurrentResultServer) error {
-	log.Printf("Request 	%s	,highest bid is: %v ,by: %s", in.Name, s.currentBid, s.currentBidOwner)
+	log.Printf("Request 	%s	highest bid is: %v ,by: %s", in.Name, s.currentBid, s.currentBidOwner)
+
+	if (time.Until(s.auctionEnd) <= 0) {
+		s.isOver = true
+	}
 	
 	resp := &request.RequestResponse{}
 	resp.HighestBid = s.currentBid
@@ -93,6 +117,7 @@ type server struct{
 	currentBid 		int32
 	currentBidOwner	string
 	isOver 			bool
+	auctionEnd 		time.Time
 	ctx 		context.Context
 	request.UnimplementedBiddingServiceServer
 	clients 	map[int32]request.ClientHandshake // can probably be removed
