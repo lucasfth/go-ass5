@@ -43,7 +43,7 @@ func main() {
 }
 
 func(s *server) Handshake(in *request.ClientHandshake, srv request.BiddingService_HandshakeServer) error {
-	log.Printf("Has recieved handshake from %v", in.ClientPort)
+	log.Printf("Handshake 	%s", in.Name)
 
 	resp := &request.BidResponse{}
 	resp.Response = "Succes"
@@ -55,7 +55,7 @@ func (s *server) SendBid(in *request.Bid, srv request.BiddingService_SendBidServ
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	log.Printf("Has recieved bid response from %s", in.Name)
+	log.Printf("Bid 	%s", in.Name)
 	
 	resp := &request.BidResponse{}
 	if in.Amount > s.currentBid{
@@ -72,7 +72,7 @@ func (s *server) SendBid(in *request.Bid, srv request.BiddingService_SendBidServ
 }
 
 func (s *server) RequestCurrentResult(in *request.Request, srv request.BiddingService_RequestCurrentResultServer) error {
-	log.Printf("Has recieved request from someone")
+	log.Printf("Request 	%s", in.Name)
 	
 	resp := &request.RequestResponse{}
 	resp.HighestBid = s.currentBid

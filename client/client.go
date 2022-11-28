@@ -42,7 +42,7 @@ func main(){
 		
 		// create stream
 		client := request.NewBiddingServiceClient(conn)
-		in := &request.ClientHandshake{ClientPort: dialNum} 
+		in := &request.ClientHandshake{ClientPort: dialNum, Name: c.name} 
 		//bidStream, err := client.SendBid(context.Background(), )
 		stream, err := client.Handshake(ctx, in)
 		if err != nil {
@@ -112,7 +112,7 @@ func (c *client) requestCurrentResults() (currentRelaventBid int32){
 }
 
 func (c *client) requestCurrentResult(iteration int32)(*request.RequestResponse, error){
-	in := &request.Request{}
+	in := &request.Request{Name: c.name}
 	stream, err := c.servers[iteration].RequestCurrentResult(context.Background(), in)
 	if err != nil {
 		return nil, err
