@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"os"
 	"time"
 
 	request "github.com/lucasfth/go-ass5/grpc"
@@ -15,7 +16,7 @@ import (
 
 type client struct {
 	name 			string
-	currentBid		int32
+	downedServers 	map[int32]bool
 	servers 		[]request.BiddingServiceClient
 }
 
@@ -30,6 +31,8 @@ func main(){
 	log.Printf("Enter username below:")
 	fmt.Scanln(&c.name)
 	log.Printf("Welcome %s", c.name)
+	
+	c.downedServers = make (map[int32]bool)
 
 	for i := 0; i < 3; i++ { // Will iterate through ports 5001, 5002, 5003
 		dialNum  := int32(5001 + i)
@@ -42,7 +45,7 @@ func main(){
 		
 		// create stream
 		client := request.NewBiddingServiceClient(conn)
-		in := &request.ClientHandshake{ClientPort: dialNum} 
+		in := &request.ClientHandshake{ClientPort: dialNum, Name: c.name} 
 		//bidStream, err := client.SendBid(context.Background(), )
 		stream, err := client.Handshake(ctx, in)
 		if err != nil {
@@ -56,20 +59,21 @@ func main(){
 			log.Fatalf("Cannot receive %v", err)
 		}
 		c.servers = append(c.servers, client)
+		c.downedServers[dialNum] = false
 		time.Sleep(4 * time.Second)
 	}
 
 	for { // Communication loop
+		rand.Seed(time.Now().UnixNano()) // ensure "random" number is different each time
 		actionType := int32(rand.Intn(2)) // 0 = bid, 1 = request
 
 		if actionType == 0 {
-			log.Printf("Action type: Bid")
+			// log.Printf("Action type: Bid")
 			randomBid := int32(rand.Intn(1000))
-			log.Printf("Will bid with %v", randomBid)
 			c.sendBids(randomBid)
 			time.Sleep(4 * time.Second)
 		} else {
-			log.Printf("Action type: Request")
+			// log.Printf("Action type: Request")
 			c.requestCurrentResults()
 			time.Sleep(4 * time.Second)
 		}
@@ -83,6 +87,11 @@ func (c *client) sendBids(bid int32){
 		responses[i] = response
 	}
 	logicResponse := c.logic(responses, bid)
+	
+	if logicResponse == "Exception" {
+		log.Print("Tried to bid but found EXCEPTION")
+		os.Exit(1)
+	}
 
 	log.Printf("---------Bid %v was %s", bid, logicResponse)
 }
@@ -91,18 +100,36 @@ func (c *client) sendBid(iteration int32, bid int32) (string, error) {
 	in := &request.Bid{Name: c.name, Amount: bid}
 	stream, err := c.servers[iteration].SendBid(context.Background(), in)
 	if err != nil {
+		serverDown(iteration, c)
 		return "nil", err
 	}
 	resp, err := stream.Recv()
 	return resp.GetResponse(), err
 }
 
+func serverDown (iteration int32, c *client) {
+	if (!c.downedServers[5001 + iteration]) {
+		log.Printf("Server %v is down", (5001 + iteration))
+	}
+	c.downedServers[5001 + iteration] = true
+}
+
 func (c *client) requestCurrentResults() (currentRelaventBid int32){
-	var highestBid int32; 
+	numberOfCrashes := 0
+	var highestBid int32 
 	for i := 0; i < len(c.servers); i++ { // Request current result from all servers
 		resp, err := c.requestCurrentResult(int32(i))
 		if err != nil {
-			return
+			numberOfCrashes++
+			serverDown(int32(i), c)
+			continue
+		}
+		if (numberOfCrashes == len(c.servers)){
+			log.Printf("Tried to request but found EXCEPTION")
+			os.Exit(1)
+		}
+		if (resp.IsOver) {
+			auctionFinished(resp, c.name)
 		}
 		highestBid = resp.HighestBid
 	}
@@ -110,8 +137,17 @@ func (c *client) requestCurrentResults() (currentRelaventBid int32){
 	return highestBid
 }
 
+func auctionFinished(resp *request.RequestResponse, name string) {
+	if (resp.WinnerName == name) {
+		log.Printf("Won the auction with bid %v", resp.HighestBid)
+	} else {
+		log.Printf("Lost the auction")
+	}
+	os.Exit(1)
+}
+
 func (c *client) requestCurrentResult(iteration int32)(*request.RequestResponse, error){
-	in := &request.Request{}
+	in := &request.Request{Name: c.name}
 	stream, err := c.servers[iteration].RequestCurrentResult(context.Background(), in)
 	if err != nil {
 		return nil, err
@@ -122,19 +158,16 @@ func (c *client) requestCurrentResult(iteration int32)(*request.RequestResponse,
 
 func (c *client) logic(responses []string, bid int32) (string) {
 	for i := 0; i < len(responses); i++ {
-		log.Printf("Response was: %s ,on i: %v", responses[i], i)
+		// log.Printf("Response was: %s ,on i: %v", responses[i], i)
 		if responses[i] == "Success" {
-			c.currentBid = bid
-			log.Printf("Went into success")
+			// log.Printf("Went into success")
 			return "Succes"
 		} else if responses[i] == "Fail" {
-			c.currentBid = -1
-			log.Printf("Went into fail")
+			// log.Printf("Went into fail")
 			return "Fail"
-		} else if responses[i] == "Exception" {
-			continue
+		} else if (i == len(responses) - 1) {
+			return "Exception"
 		}
 	}
-	c.currentBid = -1
 	return "Fail"
 }
