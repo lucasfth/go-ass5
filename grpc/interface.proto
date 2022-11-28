@@ -12,6 +12,7 @@ service BiddingService{
 
 message ClientHandshake {
     int32 clientPort = 1;
+    string name = 2;
 }
 
 message Bid{
@@ -19,7 +20,9 @@ message Bid{
     int32 amount = 2;
 }
 
-message Request{}
+message Request{
+    string name = 1;
+}
 
 message BidResponse{
      string response = 1; // Success, Fail, Exception
