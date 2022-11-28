@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"os"
 	"time"
 
 	request "github.com/lucasfth/go-ass5/grpc"
@@ -86,6 +87,9 @@ func (c *client) sendBids(bid int32){
 	logicResponse := c.logic(responses, bid)
 
 	log.Printf("---------Bid %v was %s", bid, logicResponse)
+	if logicResponse == "Exception" {
+		os.Exit(1)
+	}
 }
 
 func (c *client) sendBid(iteration int32, bid int32) (string, error) {
@@ -99,11 +103,17 @@ func (c *client) sendBid(iteration int32, bid int32) (string, error) {
 }
 
 func (c *client) requestCurrentResults() (currentRelaventBid int32){
-	var highestBid int32; 
+	numberOfCrashes := 0
+	var highestBid int32 
 	for i := 0; i < len(c.servers); i++ { // Request current result from all servers
 		resp, err := c.requestCurrentResult(int32(i))
 		if err != nil {
-			return
+			numberOfCrashes++
+			continue
+		}
+		if (numberOfCrashes == len(c.servers)){
+			log.Printf("Exception")
+			os.Exit(1)
 		}
 		highestBid = resp.HighestBid
 	}
@@ -132,8 +142,8 @@ func (c *client) logic(responses []string, bid int32) (string) {
 			c.currentBid = -1
 			log.Printf("Went into fail")
 			return "Fail"
-		} else if responses[i] == "Exception" {
-			continue
+		} else if (i == len(responses) - 1) {
+			return "Exception"
 		}
 	}
 	c.currentBid = -1

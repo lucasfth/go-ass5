@@ -55,8 +55,6 @@ func (s *server) SendBid(in *request.Bid, srv request.BiddingService_SendBidServ
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	log.Printf("Bid 	%s", in.Name)
-	
 	resp := &request.BidResponse{}
 	if in.Amount > s.currentBid{
 		s.currentBid = in.Amount
@@ -67,12 +65,15 @@ func (s *server) SendBid(in *request.Bid, srv request.BiddingService_SendBidServ
 	} else {
 		resp.Response = "Exception"
 	}
+
+	log.Printf("Bid 	%s	,%s with %v", in.Name, resp.Response, in.Amount)
+	
 	srv.Send(resp);
 	return nil
 }
 
 func (s *server) RequestCurrentResult(in *request.Request, srv request.BiddingService_RequestCurrentResultServer) error {
-	log.Printf("Request 	%s", in.Name)
+	log.Printf("Request 	%s	,highest bid is: %v ,by: %s", in.Name, s.currentBid, s.currentBidOwner)
 	
 	resp := &request.RequestResponse{}
 	resp.HighestBid = s.currentBid
