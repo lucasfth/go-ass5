@@ -17,6 +17,7 @@ import (
 type client struct {
 	name 			string
 	downedServers 	map[int32]bool
+	downedServerInt int32
 	servers 		[]request.BiddingServiceClient
 }
 
@@ -26,7 +27,7 @@ func main(){
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithInsecure())
 
-	c := &client{}
+	c := &client{downedServerInt: 0}
 
 	log.Printf("Enter username below:")
 	fmt.Scanln(&c.name)
@@ -115,16 +116,15 @@ func serverDown (iteration int32, c *client) {
 }
 
 func (c *client) requestCurrentResults() (currentRelaventBid int32){
-	numberOfCrashes := 0
 	var highestBid int32 
 	for i := 0; i < len(c.servers); i++ { // Request current result from all servers
 		resp, err := c.requestCurrentResult(int32(i))
 		if err != nil {
-			numberOfCrashes++
+			c.downedServerInt++
 			serverDown(int32(i), c)
 			continue
 		}
-		if (numberOfCrashes == len(c.servers)){
+		if (c.downedServerInt == int32(len(c.servers))){
 			log.Printf("Tried to request but found EXCEPTION")
 			os.Exit(1)
 		}
