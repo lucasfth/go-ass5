@@ -60,6 +60,7 @@ func main(){
 	}
 
 	for { // Communication loop
+		rand.Seed(time.Now().UnixNano()) // ensure "random" number is different each time
 		actionType := int32(rand.Intn(2)) // 0 = bid, 1 = request
 
 		if actionType == 0 {
