@@ -108,20 +108,26 @@ func (c *client) sendBid(iteration int32, bid int32) (string, error) {
 	return resp.GetResponse(), err
 }
 
-func serverDown (iteration int32, c *client) {
+func serverDown (iteration int32, c *client) (bool){
 	if (!c.downedServers[5001 + iteration]) {
 		log.Printf("Server %v is down", (5001 + iteration))
+		c.downedServers[5001 + iteration] = true
+		return true // Server has just crashed
 	}
-	c.downedServers[5001 + iteration] = true
+	return false // Server was already down
 }
 
 func (c *client) requestCurrentResults() (currentRelaventBid int32){
 	var highestBid int32 
+	var isOver bool
+	var winnnerName string
+	var winnerAmount int32
 	for i := 0; i < len(c.servers); i++ { // Request current result from all servers
 		resp, err := c.requestCurrentResult(int32(i))
 		if err != nil {
-			c.downedServerInt++
-			serverDown(int32(i), c)
+			if serverDown(int32(i), c) {
+				c.downedServerInt++
+			}
 			continue
 		}
 		if (c.downedServerInt == int32(len(c.servers))){
@@ -129,17 +135,22 @@ func (c *client) requestCurrentResults() (currentRelaventBid int32){
 			os.Exit(1)
 		}
 		if (resp.IsOver) {
-			auctionFinished(resp, c.name)
+			isOver = true
+			winnnerName = resp.WinnerName
+			winnerAmount = resp.HighestBid
 		}
 		highestBid = resp.HighestBid
+	}
+	if (isOver) {
+		auctionFinished(winnnerName, winnerAmount, c.name)
 	}
 	log.Printf("---------Current highest bid is %v", highestBid)
 	return highestBid
 }
 
-func auctionFinished(resp *request.RequestResponse, name string) {
-	if (resp.WinnerName == name) {
-		log.Printf("Won the auction with bid %v", resp.HighestBid)
+func auctionFinished(winnerName string, winnerAmount int32, name string) {
+	if (winnerName == name) {
+		log.Printf("Won the auction with bid %v", winnerAmount)
 	} else {
 		log.Printf("Lost the auction")
 	}
