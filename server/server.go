@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -66,34 +67,37 @@ func (s *server) SendBid(in *request.Bid, srv request.BiddingService_SendBidServ
 	resp := &request.BidResponse{}
 
 	if (time.Until(s.auctionEnd) <= 0) {
+		if !s.isOver { log.Printf("--- Auction is over, %s won with bid %v ---", s.currentBidOwner, s.currentBid) }
 		s.isOver = true
 	}
-	if (s.isOver) {
-		log.Printf("Bid 	%s with %v but auction over, winner: %s , with: %v", in.Name, in.Amount, s.currentBidOwner, s.currentBid)
-		resp.Response = "Fail" 
-		srv.Send(resp)
-		return nil
-	}
 
-	
-	if in.Amount > s.currentBid{
+	var output bytes.Buffer
+	output.WriteString(fmt.Sprintf("Bid\t\t%s", in.Name))
+
+	if s.isOver {
+		resp.Response = "Fail"
+		output.WriteString(fmt.Sprintf("\t%s with %v but auction over, winner: %s , with: %v", resp.Response, in.Amount, s.currentBidOwner, s.currentBid))
+	} else if in.Amount > s.currentBid {
 		s.currentBid = in.Amount
 		s.currentBidOwner = in.Name
 		resp.Response = "Success"
-	} else if in.Amount <= s.currentBid{
+		output.WriteString(fmt.Sprintf("\t%s with %v", resp.Response, in.Amount))
+	} else if in.Amount <= s.currentBid {
 		resp.Response = "Fail"
+		output.WriteString(fmt.Sprintf("\t%s with %v", resp.Response, in.Amount))
 	} else {
 		resp.Response = "Exception"
+		output.WriteString(fmt.Sprintf("\t%s with %v", resp.Response, in.Amount))
 	}
 
-	log.Printf("Bid 	%s	%s with %v", in.Name, resp.Response, in.Amount)
+	log.Print(output.String())
 	
 	srv.Send(resp)
 	return nil
 }
 
 func (s *server) RequestCurrentResult(in *request.Request, srv request.BiddingService_RequestCurrentResultServer) error {
-	log.Printf("Request 	%s	highest bid is: %v ,by: %s", in.Name, s.currentBid, s.currentBidOwner)
+	log.Printf("Request\t%s	highest bid is: %v by: %s", in.Name, s.currentBid, s.currentBidOwner)
 
 	if (time.Until(s.auctionEnd) <= 0) {
 		s.isOver = true
