@@ -69,11 +69,19 @@ The bid will look like this:
 ```bash
 ---------Bid <bid amount> was <see bid response below>
 ```
+If all servers have crashed it will output this:
+```bash
+Tried to bid but found EXCEPTION
+```
 <br/>
 
 The request will look like this:
 ```bash
 ---------Current highest bid is <highest current bid>
+```
+If all servers have crashed it will output this:
+```bash
+Tried to request but found EXCEPTION
 ```
 <br/>
 
