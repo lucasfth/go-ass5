@@ -31,8 +31,18 @@ func main(){
 
 	log.Printf("Enter username below:")
 	fmt.Scanln(&c.name)
+
+	path := fmt.Sprintf("clientlog_%s", c.name)
+	f, err := os.OpenFile(path, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	defer f.Close()
+
+	log.SetOutput(f)
+
 	log.Printf("Welcome %s", c.name)
-	
+
 	c.downedServers = make (map[int32]bool)
 
 	for i := 0; i < 3; i++ { // Will iterate through ports 5001, 5002, 5003

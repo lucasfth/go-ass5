@@ -8,6 +8,7 @@ import (
 	"net"
 	"sync"
 	"time"
+	"os"
 
 	request "github.com/lucasfth/go-ass5/grpc"
 	"google.golang.org/grpc"
@@ -17,12 +18,23 @@ func main() {
 	var id int32
 	log.Printf("Enter id below:")
 	fmt.Scanln(&id)
-	log.Printf("Welcome %v", id)
+	log.Printf("Server: %v has spun up", id)
 
 	var endHour, endMin int
 	log.Printf("Enter auction time below in hour and min:")
 	fmt.Scanln(&endHour, &endMin)
 	end := time.Date (time.Now().Year(), time.Now().Month(), time.Now().Day(), endHour, endMin, 0, 0, time.Local)
+
+	path := fmt.Sprintf("serverlog_%v", id)
+	f, err := os.OpenFile(path, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	defer f.Close()
+
+	log.SetOutput(f)
+
+	log.Printf("Welcome %v", id)
 
 	port := int32(5000 + id)
 	portString := fmt.Sprintf(":%v", port)
